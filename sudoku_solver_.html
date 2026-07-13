@@ -1,0 +1,279 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: transparent; }
+  .app { background: #0D1117; border-radius: 16px; padding: 28px 32px 24px; font-family: 'Courier New', monospace; max-width: 520px; margin: 0 auto; border: 1px solid #21262D; }
+  .title { text-align: center; color: #00D4FF; font-size: 28px; font-weight: 700; letter-spacing: 4px; }
+  .subtitle { text-align: center; color: #8B949E; font-size: 10px; letter-spacing: 8px; margin-top: 4px; }
+  .divider { height: 1px; background: #00D4FF; margin: 16px 0; opacity: 0.6; }
+  .stats { display: flex; gap: 10px; margin-bottom: 18px; }
+  .stat { flex: 1; background: #161B22; border-radius: 8px; padding: 10px 8px; text-align: center; }
+  .stat-label { color: #8B949E; font-size: 9px; letter-spacing: 2px; margin-bottom: 4px; }
+  .stat-val { color: #00D4FF; font-size: 18px; font-weight: 700; }
+  .stat-val.green { color: #00FF88; }
+  .grid-wrap { border: 2px solid #00D4FF; border-radius: 4px; display: inline-block; background: #00D4FF; gap: 1px; padding: 1px; width: 100%; }
+  .grid { display: grid; grid-template-columns: repeat(9,1fr); gap: 1px; background: #1C2128; }
+  .cell { background: #1C2128; color: #E6EDF3; font-family: 'Courier New', monospace; font-size: 16px; font-weight: 700; text-align: center; padding: 9px 0; position: relative; transition: background 0.15s; }
+  .cell.given { background: #0D1117; color: #E6EDF3; }
+  .cell.solved { background: #0A2540; color: #00D4FF; }
+  .cell.active { background: #002244; color: #00D4FF; }
+  .cell.box-right { border-right: 2px solid #00D4FF; }
+  .cell.box-bottom { border-bottom: 2px solid #00D4FF; }
+  .btns { display: flex; gap: 8px; margin-top: 14px; }
+  .btn { flex: 1; padding: 9px 0; border-radius: 6px; border: none; font-family: 'Courier New', monospace; font-size: 11px; font-weight: 700; cursor: pointer; letter-spacing: 1px; transition: background 0.15s; }
+  .btn-primary { background: #00D4FF; color: #0D1117; }
+  .btn-primary:hover { background: #00AACC; }
+  .btn-secondary { background: #21262D; color: #8B949E; border: 1px solid #30363D; }
+  .btn-secondary:hover { background: #30363D; color: #E6EDF3; }
+  .puzzles { display: flex; gap: 6px; margin-top: 10px; }
+  .pill { flex: 1; padding: 6px 0; border-radius: 6px; background: #161B22; border: 1px solid #30363D; color: #8B949E; font-family: 'Courier New', monospace; font-size: 10px; cursor: pointer; text-align: center; transition: all 0.15s; }
+  .pill:hover { border-color: #00D4FF; color: #00D4FF; }
+  .pill.active { border-color: #00D4FF; color: #00D4FF; background: #0A2540; }
+  .speed-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .speed-label { color: #8B949E; font-size: 9px; letter-spacing: 1px; white-space: nowrap; }
+  input[type=range] { flex: 1; accent-color: #00D4FF; height: 4px; }
+  .footer { text-align: center; color: #3D4F5C; font-size: 9px; margin-top: 14px; letter-spacing: 1px; }
+  .solving-dot { display: inline-block; animation: blink 0.8s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+</style>
+
+<div class="app">
+  <div class="title">SUDOKU</div>
+  <div class="subtitle">A U T O &nbsp; S O L V E R</div>
+  <div class="divider"></div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">STEPS</div><div class="stat-val" id="steps">0</div></div>
+    <div class="stat"><div class="stat-label">TIME</div><div class="stat-val" id="time">0.00s</div></div>
+    <div class="stat"><div class="stat-label">STATUS</div><div class="stat-val green" id="status">READY</div></div>
+  </div>
+
+  <div class="grid-wrap">
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div class="speed-row">
+    <span class="speed-label">INSTANT</span>
+    <input type="range" min="0" max="100" value="40" id="speed">
+    <span class="speed-label">STEP·BY·STEP</span>
+  </div>
+
+  <div class="btns">
+    <button class="btn btn-primary" id="solveBtn" onclick="startSolve()">▶ SOLVE</button>
+    <button class="btn btn-secondary" onclick="resetPuzzle()">⟳ RESET</button>
+    <button class="btn btn-secondary" onclick="clearAll()">✎ CLEAR</button>
+  </div>
+
+  <div class="puzzles">
+    <button class="pill active" onclick="loadSample(0,this)">Easy</button>
+    <button class="pill" onclick="loadSample(1,this)">Medium</button>
+    <button class="pill" onclick="loadSample(2,this)">Hard</button>
+    <button class="pill" onclick="loadRandom(this)">Random</button>
+  </div>
+
+  <div class="footer">Enter your own numbers · click cells to edit</div>
+</div>
+
+<script>
+const PUZZLES = [
+  [[5,3,0,0,7,0,0,0,0],[6,0,0,1,9,5,0,0,0],[0,9,8,0,0,0,0,6,0],[8,0,0,0,6,0,0,0,3],[4,0,0,8,0,3,0,0,1],[7,0,0,0,2,0,0,0,6],[0,6,0,0,0,0,2,8,0],[0,0,0,4,1,9,0,0,5],[0,0,0,0,8,0,0,7,9]],
+  [[0,0,0,2,6,0,7,0,1],[6,8,0,0,7,0,0,9,0],[1,9,0,0,0,4,5,0,0],[8,2,0,1,0,0,0,4,0],[0,0,4,6,0,2,9,0,0],[0,5,0,0,0,3,0,2,8],[0,0,9,3,0,0,0,7,4],[0,4,0,0,5,0,0,3,6],[7,0,3,0,1,8,0,0,0]],
+  [[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,3,0,8,5],[0,0,1,0,2,0,0,0,0],[0,0,0,5,0,7,0,0,0],[0,0,4,0,0,0,1,0,0],[0,9,0,0,0,0,0,0,0],[5,0,0,0,0,0,0,7,3],[0,0,2,0,1,0,0,0,0],[0,0,0,0,4,0,0,0,9]],
+];
+
+let board = [], given = new Set(), solving = false, stepCount = 0, startTime = 0, solveTimer = null;
+let currentPuzzle = 0;
+
+function buildGrid() {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.id = `c${r}${c}`;
+      if (c === 2 || c === 5) cell.classList.add('box-right');
+      if (r === 2 || r === 5) cell.classList.add('box-bottom');
+      cell.contentEditable = true;
+      cell.spellcheck = false;
+      cell.addEventListener('input', () => onCellInput(r, c, cell));
+      cell.addEventListener('keydown', e => {
+        if (!/[1-9]/.test(e.key) && !['Backspace','Delete','Tab','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault();
+      });
+      g.appendChild(cell);
+    }
+  }
+}
+
+function onCellInput(r, c, cell) {
+  const v = cell.innerText.replace(/\D/g,'').slice(-1);
+  cell.innerText = v;
+  board[r][c] = v ? parseInt(v) : 0;
+  placeCaretEnd(cell);
+}
+
+function placeCaretEnd(el) {
+  const range = document.createRange();
+  const sel = window.getSelection();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function setCell(r, c, val, state) {
+  const el = document.getElementById(`c${r}${c}`);
+  el.innerText = val || '';
+  el.className = 'cell';
+  if (c === 2 || c === 5) el.classList.add('box-right');
+  if (r === 2 || r === 5) el.classList.add('box-bottom');
+  el.classList.add(state);
+  el.contentEditable = given.has(`${r},${c}`) ? false : true;
+}
+
+function loadPuzzle(puz) {
+  board = puz.map(r => [...r]);
+  given.clear();
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (board[r][c]) given.add(`${r},${c}`);
+  render(); resetStats();
+}
+
+function render() {
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++) {
+      const v = board[r][c];
+      const isGiven = given.has(`${r},${c}`);
+      setCell(r, c, v || '', isGiven ? 'given' : (v ? 'solved' : ''));
+    }
+}
+
+function loadSample(i, btn) {
+  if (solving) return;
+  currentPuzzle = i;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  loadPuzzle(PUZZLES[i]);
+}
+
+function loadRandom(btn) {
+  if (solving) return;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  const base = PUZZLES[Math.floor(Math.random() * 3)];
+  const shuffled = base.map(r => [...r]);
+  loadPuzzle(shuffled);
+}
+
+function resetStats() {
+  stepCount = 0;
+  document.getElementById('steps').innerText = '0';
+  document.getElementById('time').innerText = '0.00s';
+  document.getElementById('status').innerText = 'READY';
+  document.getElementById('status').style.color = '#00FF88';
+}
+
+function resetPuzzle() {
+  if (solving) return;
+  loadSample(currentPuzzle, null);
+}
+
+function clearAll() {
+  if (solving) return;
+  board = Array.from({length:9}, () => Array(9).fill(0));
+  given.clear();
+  render(); resetStats();
+}
+
+// ── solver ─────────────────────────────────
+function getOptions(b, r, c) {
+  const used = new Set(b[r]);
+  for (let i = 0; i < 9; i++) used.add(b[i][c]);
+  const br = Math.floor(r/3)*3, bc = Math.floor(c/3)*3;
+  for (let i = br; i < br+3; i++) for (let j = bc; j < bc+3; j++) used.add(b[i][j]);
+  const opts = [];
+  for (let n = 1; n <= 9; n++) if (!used.has(n)) opts.push(n);
+  return opts;
+}
+
+function findEmpty(b) {
+  let best = 10, pos = null;
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (!b[r][c]) { const o = getOptions(b,r,c).length; if (o < best) { best=o; pos=[r,c]; } }
+  return pos;
+}
+
+let steps_queue = [];
+
+function solveCollect(b) {
+  const pos = findEmpty(b);
+  if (!pos) return true;
+  const [r, c] = pos;
+  for (const n of getOptions(b, r, c)) {
+    b[r][c] = n;
+    steps_queue.push({r, c, n, action:'try'});
+    if (solveCollect(b)) return true;
+    b[r][c] = 0;
+    steps_queue.push({r, c, n:0, action:'back'});
+  }
+  return false;
+}
+
+function startSolve() {
+  if (solving) return;
+  solving = true;
+  stepCount = 0;
+  startTime = Date.now();
+  document.getElementById('status').innerText = 'SOLVING';
+  document.getElementById('status').style.color = '#FFD700';
+
+  const workBoard = board.map(r => [...r]);
+  given.clear();
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (workBoard[r][c]) given.add(`${r},${c}`);
+
+  steps_queue = [];
+  const ok = solveCollect(workBoard);
+  if (!ok) { document.getElementById('status').innerText = 'NO SOLUTION'; solving = false; return; }
+
+  const delay = Math.floor((document.getElementById('speed').value / 100) * 60);
+
+  if (delay < 5) {
+    // instant
+    board = workBoard;
+    for (const {r,c,n} of steps_queue.filter(s=>s.action==='try' && n!==0)) board[r][c]=n;
+    board = workBoard;
+    for (let r=0;r<9;r++) for(let c=0;c<9;c++) setCell(r,c,workBoard[r][c]||'',given.has(`${r},${c}`)?'given':'solved');
+    stepCount = steps_queue.length;
+    document.getElementById('steps').innerText = stepCount;
+    document.getElementById('time').innerText = ((Date.now()-startTime)/1000).toFixed(3)+'s';
+    document.getElementById('status').innerText = 'SOLVED ✓';
+    document.getElementById('status').style.color = '#00FF88';
+    solving = false;
+  } else {
+    let i = 0;
+    function next() {
+      if (i >= steps_queue.length) {
+        document.getElementById('status').innerText = 'SOLVED ✓';
+        document.getElementById('status').style.color = '#00FF88';
+        solving = false; return;
+      }
+      const {r,c,n,action} = steps_queue[i++];
+      board[r][c] = n;
+      setCell(r, c, n||'', action==='try' ? 'active' : '');
+      stepCount++;
+      document.getElementById('steps').innerText = stepCount;
+      document.getElementById('time').innerText = ((Date.now()-startTime)/1000).toFixed(2)+'s';
+      if (i >= steps_queue.length) { setCell(r,c,n,'solved'); }
+      solveTimer = setTimeout(next, delay);
+    }
+    next();
+  }
+}
+
+buildGrid();
+loadPuzzle(PUZZLES[0]);
+</script>
